@@ -51,8 +51,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           (cd dist && ditto -c -k --sequesterRsrc . ../Galaksi-mac.zip)
-          gh release view son-surum >/dev/null 2>&1 || gh release create son-surum --title "Son sürüm (otomatik)" --notes "main dalının en son Mac derlemesi" --latest
-          gh release upload son-surum Galaksi-mac.zip --clobber
+          # Her derlemede yeniden oluştur: sayfadaki tarih ve notlar hep en son derlemeyi göstersin
+          gh release delete son-surum --cleanup-tag -y || true
+          MSG=$(git log -1 --pretty=%s)
+          gh release create son-surum Galaksi-mac.zip --target "$GITHUB_SHA" --latest \
+            --title "Son sürüm (otomatik) — $(date -u +'%d.%m.%Y %H:%M') UTC" \
+            --notes "Son değişiklik: $MSG (commit ${GITHUB_SHA::7})"
       - uses: actions/upload-artifact@v5
         with:
           name: Galaksi-mac-${{ matrix.runner }}
