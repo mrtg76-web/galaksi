@@ -21,14 +21,18 @@ Paket hem Apple Silicon hem Intel/Rosetta için derlenir. Live 10 M1'de Rosetta 
 
 1. **Türler:** Radio-Browser etiketleri, virgülle ayrılır. Örnek: `jazz, world music`, `afrobeat, turkish folk`, `ambient`.
 2. **Hedef scale:** kök nota ve mod (Majör, Minör, Dorian, Frigyen, Lidyen, Miksolidyen, Lokriyen, Armonik minör).
-3. **KİLİTSİZLERİ YENİLE**'ye bas. Her yuva ayrı ayrı rastgele bir istasyonu dinler, uygun bir kesit bulana kadar dener ve sonucu WAV olarak kaydeder.
-4. Pad'ler:
+3. **Çıktı** seçimi:
+   - **MIDI pad'ler:** sample'lar eklentinin içinde kalır ve MIDI notalarıyla çalınır (C1 = yuva 1 … D#2 = yuva 16). Kullanıcı klasörüne bir şey kaydedilmez. Pad'i sürükleyince Ableton'a yine de alabilirsin; dosyalar eklentinin kendi önbelleğinde durur (`~/Library/Application Support/Galaksi/Cache`).
+   - **WAV klasörü:** her sample klasöre WAV olarak kaydedilir. MIDI notaları yok sayılır.
+   - **İkisi de** (varsayılan): hem MIDI ile çalınır hem klasöre kaydedilir.
+4. **KİLİTSİZLERİ YENİLE**'ye bas. Her yuva ayrı ayrı rastgele bir istasyonu dinler, uygun bir kesit bulana kadar dener ve sonucu WAV olarak kaydeder.
+5. Pad'ler:
    - **Tıkla:** sample'ı dinle. Tekrar tıklayınca durur.
    - **Sürükle:** WAV dosyasını Ableton'a (clip slot, Simpler, Drum Rack pad'i) bırak.
    - **KİLİT:** bu yuva yenilenmez.
    - **YENİ:** sadece bu yuvayı yenile. Arama sürerken düğme **DUR** olur.
-   - MIDI ile de çalabilirsin: C1 = yuva 1, C#1 = yuva 2 … D#2 = yuva 16.
-5. **KLASÖRÜ AÇ** kaydedilen WAV'ları Finder'da gösterir. Varsayılan klasör `~/Music/Galaksi`. **KLASÖR…** ile değiştirilebilir.
+   - MIDI ile çalma (MIDI pad'ler / İkisi de modunda): C1 = yuva 1, C#1 = yuva 2 … D#2 = yuva 16. Pad'in sol üstündeki nota etiketi hangi notaya bağlı olduğunu gösterir.
+6. **KLASÖRÜ AÇ** kaydedilen WAV'ları Finder'da gösterir. Varsayılan klasör `~/Music/Galaksi`. **KLASÖR…** ile değiştirilebilir.
 
 Dosyaların üzerine asla yazılmaz. Her yenilemede yeni bir dosya oluşur, böylece Ableton'a sürüklediğin eski sample'lar bozulmaz. Dosya adında yuva numarası, hedef scale, orijinal ton, kaydırma ve istasyon adı yazar. Örnek: `03_Cminor_Emajor_-1st_Radio-Jazz_101950.wav`.
 
@@ -42,7 +46,8 @@ Dosyaların üzerine asla yazılmaz. Her yenilemede yeni bir dosya oluşur, böy
 | Ton güveni | seçicilik. Yüksek = sadece tonu çok net kayıtlar kabul edilir (konuşma ve reklamlar elenir), ama bulmak daha uzun sürer. |
 | Maks kaydırma | en fazla kaç yarım ton kaydırılsın. Düşük tutarsan ses daha doğal kalır, ama daha az kayıt uyar. |
 | Transpoz | **Kaliteli:** süre korunur (Rubber Band). **Bant:** plak/bant gibi, hız da değişir. |
-| Önizleme sesi | plugin içindeki dinleme seviyesi |
+| Çıktı | MIDI pad'ler / WAV klasörü / İkisi de |
+| Önizleme sesi | plugin içindeki çalma seviyesi |
 
 Ayarların, kilitlerin ve yuvalardaki sample'ların hepsi Ableton projesiyle birlikte kaydedilir.
 

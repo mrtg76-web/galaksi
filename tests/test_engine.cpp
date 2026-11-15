@@ -108,6 +108,21 @@ int main()
         int wavs = folder.getNumberOfChildFiles(juce::File::findFiles, "*.wav");
         std::printf("klasördeki wav: %d\n", wavs);
         CHECK(wavs == 3, "beklenmeyen wav sayısı %d (iptal edilen iş dosya yazmamalı)", wavs);
+
+        // 5. MIDI pad modu: WAV kullanıcı klasörüne değil önbelleğe yazılır
+        juce::File cache = folder.getSiblingFile("galaksi_test_cache");
+        cache.deleteRecursively();
+        auto es2 = eng.getSettings();
+        es2.exportToFolder = false;
+        es2.cacheFolder = cache;
+        eng.setSettings(es2);
+        eng.refresh(0);
+        for (int i = 0; i < 300 && eng.busyCount() > 0; ++i) juce::Thread::sleep(100);
+        CHECK(eng.getSlot(0).state == SlotInfo::State::Ready, "MIDI modunda yuva dolmadı");
+        CHECK(folder.getNumberOfChildFiles(juce::File::findFiles, "*.wav") == 3, "MIDI modunda klasöre yazıldı");
+        CHECK(cache.getNumberOfChildFiles(juce::File::findFiles, "*.wav") == 1, "önbelleğe yazılmadı");
+        CHECK(eng.getSlot(0).file.isAChildOf(cache), "dosya önbellekte değil");
+        cache.deleteRecursively();
     }
     folder.deleteRecursively();
     std::printf(failures ? "\n%d BAŞARISIZ\n" : "\nTüm entegrasyon testleri geçti\n", failures);

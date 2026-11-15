@@ -39,6 +39,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout GalaksiProcessor::createLayo
     l.add(std::make_unique<AudioParameterFloat>(ParameterID {"record", 1}, TR("Dinleme süresi"),
                                                 NormalisableRange<float>(6.f, 30.f, 1.f), 12.f,
                                                 AudioParameterFloatAttributes().withLabel("s")));
+    l.add(std::make_unique<AudioParameterChoice>(ParameterID {"output", 1}, TR("Çıktı"),
+                                                 StringArray {TR("MIDI pad'ler"), TR("WAV klasörü"), TR("İkisi de")}, 2));
     l.add(std::make_unique<AudioParameterFloat>(ParameterID {"gain", 1}, TR("Ses"),
                                                 NormalisableRange<float>(-30.f, 6.f, 0.1f), 0.f,
                                                 AudioParameterFloatAttributes().withLabel("dB")));
@@ -59,6 +61,7 @@ void GalaksiProcessor::pushSettingsToEngine()
     es.core.minConfidence = params.getRawParameterValue("minconf")->load();
     es.core.maxShift = (int) params.getRawParameterValue("maxshift")->load();
     es.core.shiftMode = params.getRawParameterValue("shiftmode")->load() > 0.5f ? gk::ShiftMode::Tape : gk::ShiftMode::Quality;
+    es.exportToFolder = outputMode() != OutputMidi;
     es.recordSeconds = juce::jmax((double) params.getRawParameterValue("record")->load(), es.core.lengthSec + 3.0);
     engine.setSettings(es);
 }
@@ -138,6 +141,8 @@ void GalaksiProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Midi
         else if (start(s, 1.f)) uiTrigger[(size_t) s] = 0;
     }
 
+    const bool midiOn = outputMode() != OutputFolder;
+    if (midiOn)
     for (const auto meta : midi) {
         const auto m = meta.getMessage();
         if (m.isNoteOn()) {

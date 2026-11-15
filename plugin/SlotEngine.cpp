@@ -16,9 +16,20 @@ public:
     const int slot, gen;
 };
 
+juce::File SlotEngine::defaultCacheFolder()
+{
+    auto base = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+#if JUCE_MAC
+    return base.getChildFile("Application Support/Galaksi/Cache");
+#else
+    return base.getChildFile("Galaksi/Cache");
+#endif
+}
+
 SlotEngine::SlotEngine() : threads(6)
 {
     settings.folder = juce::File::getSpecialLocation(juce::File::userMusicDirectory).getChildFile("Galaksi");
+    settings.cacheFolder = defaultCacheFolder();
     for (auto& s : slots) s.status = TR("boş — yenile'ye bas");
 }
 
@@ -214,7 +225,8 @@ std::vector<float> SlotEngine::computePeaks(const juce::AudioBuffer<float>& b, i
 
 juce::File SlotEngine::writeWav(int slot, const CaptureResult& r, const Station& st, const EngineSettings& es)
 {
-    if (!es.folder.createDirectory()) return {};
+    const juce::File folder = es.exportToFolder ? es.folder : es.cacheFolder;
+    if (!folder.createDirectory()) return {};
     auto clean = [](juce::String s) {
         s = s.retainCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -_");
         return s.trim().replaceCharacter(' ', '-').substring(0, 28);
@@ -225,7 +237,7 @@ juce::File SlotEngine::writeWav(int slot, const CaptureResult& r, const Station&
     // Asla üzerine yazılmaz: Ableton'a sürüklenmiş eski dosyalar bozulmasın
     const juce::String base = juce::String(slot + 1).paddedLeft('0', 2) + "_" + target.removeCharacters(" ") + "_" + orig
                               + "_" + (r.shift >= 0 ? "+" : "") + juce::String(r.shift) + "st_" + clean(st.name) + "_" + stamp;
-    juce::File f = es.folder.getNonexistentChildFile(base, ".wav", false);
+    juce::File f = folder.getNonexistentChildFile(base, ".wav", false);
 
     juce::AudioBuffer<float> buf(r.audio.channels, r.audio.length());
     for (int c = 0; c < r.audio.channels; ++c) buf.copyFrom(c, 0, r.audio.data[(size_t) c].data(), r.audio.length());

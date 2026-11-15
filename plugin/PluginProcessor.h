@@ -45,6 +45,8 @@ public:
     void setTags(const juce::String& commaSeparated);
     void setFolder(const juce::File& f);
     int slotCount() const;
+    enum OutputMode { OutputMidi = 0, OutputFolder = 1, OutputBoth = 2 };
+    int outputMode() const { return juce::jlimit(0, 2, (int) params.getRawParameterValue("output")->load()); }
 
     gk::SlotEngine engine;
     juce::AudioProcessorValueTreeState params;

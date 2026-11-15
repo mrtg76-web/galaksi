@@ -48,14 +48,15 @@ private:
 
     GalaksiProcessor& proc;
     GalaksiLook look;
+    juce::TooltipWindow tooltips {this, 500};
 
     using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
     using CA = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
 
-    juce::Label tagsLabel, scaleLabel, shiftLabel;
+    juce::Label tagsLabel, scaleLabel, shiftLabel, outputLabel;
     juce::TextEditor tagsEditor;
-    juce::ComboBox rootBox, modeBox, shiftModeBox;
-    std::unique_ptr<CA> rootAtt, modeAtt, shiftModeAtt;
+    juce::ComboBox rootBox, modeBox, shiftModeBox, outputBox;
+    std::unique_ptr<CA> rootAtt, modeAtt, shiftModeAtt, outputAtt;
 
     struct Knob {
         juce::Label label;
@@ -69,7 +70,8 @@ private:
     std::unique_ptr<juce::FileChooser> chooser;
 
     std::vector<std::unique_ptr<PadComponent>> pads;
-    int lastVersion = -1, lastCount = -1, tick = 0;
+    int lastVersion = -1, lastCount = -1, lastOutput = -1, tick = 0;
+    void updateOutputMode();
     std::vector<juce::Point<float>> stars;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GalaksiEditor)

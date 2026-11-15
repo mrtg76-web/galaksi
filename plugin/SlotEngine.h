@@ -35,7 +35,9 @@ struct SlotInfo {
 
 struct EngineSettings {
     juce::StringArray tags {"jazz", "world music"};
-    juce::File folder;
+    juce::File folder;                 // WAV klasörü (dışa aktarma)
+    juce::File cacheFolder;            // sadece MIDI pad modunda: eklentinin kendi önbelleği
+    bool exportToFolder = true;        // false = WAV'lar kullanıcı klasörüne değil önbelleğe yazılır
     double recordSeconds = 12;
     Settings core;
 };
@@ -43,6 +45,7 @@ struct EngineSettings {
 class SlotEngine {
 public:
     static constexpr int MaxSlots = 16;
+    static juce::File defaultCacheFolder();
 
     SlotEngine();
     ~SlotEngine();

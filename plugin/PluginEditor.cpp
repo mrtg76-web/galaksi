@@ -135,10 +135,15 @@ void PadComponent::paint(juce::Graphics& g)
     g.setColour(kText);
     g.setFont(juce::FontOptions(17.f, juce::Font::bold));
     g.drawText(juce::String(index + 1), top.removeFromLeft(26), juce::Justification::centredLeft);
-    g.setColour(kDim);
-    g.setFont(juce::FontOptions(11.f));
-    g.drawText(juce::MidiMessage::getMidiNoteName(GalaksiProcessor::FirstMidiNote + index, true, true, 3),
-               top.removeFromLeft(40), juce::Justification::centredLeft);
+    if (proc.outputMode() != GalaksiProcessor::OutputFolder) {
+        auto noteArea = top.removeFromLeft(40).toFloat().reduced(0, 2);
+        g.setColour(kCyan.withAlpha(0.18f));
+        g.fillRoundedRectangle(noteArea, 4.f);
+        g.setColour(kCyan);
+        g.setFont(juce::FontOptions(11.f, juce::Font::bold));
+        g.drawText(juce::MidiMessage::getMidiNoteName(GalaksiProcessor::FirstMidiNote + index, true, true, 3),
+                   noteArea, juce::Justification::centred);
+    }
 
     // dalga formu
     auto wa = waveArea().toFloat();
@@ -226,6 +231,7 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
     setupLabel(tagsLabel, TR("Türler (virgülle)"));
     setupLabel(scaleLabel, TR("Hedef scale"));
     setupLabel(shiftLabel, TR("Transpoz"));
+    setupLabel(outputLabel, TR("Çıktı"));
 
     tagsEditor.setText(proc.engine.getSettings().tags.joinIntoString(", "), false);
     tagsEditor.setFont(juce::FontOptions(14.f));
@@ -238,7 +244,13 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
     for (int i = 0; i < gk::NumModes; ++i) modeBox.addItem(TR(gk::modeNameTr(i)), i + 1);
     shiftModeBox.addItem(TR("Kaliteli"), 1);
     shiftModeBox.addItem(TR("Bant (hız değişir)"), 2);
-    for (auto* b : {&rootBox, &modeBox, &shiftModeBox}) addAndMakeVisible(*b);
+    outputBox.addItem(TR("MIDI pad'ler"), 1);
+    outputBox.addItem(TR("WAV klasörü"), 2);
+    outputBox.addItem(TR("İkisi de"), 3);
+    outputBox.setTooltip(TR("MIDI pad'ler: sample'lar eklentide kalır, MIDI notalarıyla çalınır.  "
+                            "WAV klasörü: her sample klasöre kaydedilir.  İkisi de: hem çal hem kaydet."));
+    for (auto* b : {&rootBox, &modeBox, &shiftModeBox, &outputBox}) addAndMakeVisible(*b);
+    outputAtt = std::make_unique<CA>(proc.params, "output", outputBox);
     rootAtt = std::make_unique<CA>(proc.params, "root", rootBox);
     modeAtt = std::make_unique<CA>(proc.params, "mode", modeBox);
     shiftModeAtt = std::make_unique<CA>(proc.params, "shiftmode", shiftModeBox);
@@ -288,7 +300,6 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
     hintLabel.setFont(juce::FontOptions(11.f));
     hintLabel.setColour(juce::Label::textColourId, kDim);
     hintLabel.setJustificationType(juce::Justification::centredRight);
-    hintLabel.setText(TR("Pad'e tıkla: dinle  ·  sürükle: Ableton'a bırak  ·  MIDI C1–D#2 ile çal"), juce::dontSendNotification);
     addAndMakeVisible(hintLabel);
 
     for (int i = 0; i < gk::SlotEngine::MaxSlots; ++i) {
@@ -297,6 +308,7 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
     }
 
     setSize(1020, 720);
+    updateOutputMode();
     startTimerHz(20);
 }
 
@@ -308,7 +320,25 @@ GalaksiEditor::~GalaksiEditor()
 
 void GalaksiEditor::updateFolderLabel()
 {
-    folderLabel.setText(TR("WAV klasörü: ") + proc.engine.getSettings().folder.getFullPathName(), juce::dontSendNotification);
+    const int mode = proc.outputMode();
+    if (mode == GalaksiProcessor::OutputMidi)
+        folderLabel.setText(TR("Sample'lar eklentide kalıyor (klasöre kaydedilmiyor). Pad'i sürükleyerek yine de Ableton'a alabilirsin."),
+                            juce::dontSendNotification);
+    else
+        folderLabel.setText(TR("WAV klasörü: ") + proc.engine.getSettings().folder.getFullPathName(), juce::dontSendNotification);
+    folderBtn.setEnabled(mode != GalaksiProcessor::OutputMidi);
+    openFolderBtn.setEnabled(mode != GalaksiProcessor::OutputMidi);
+}
+
+void GalaksiEditor::updateOutputMode()
+{
+    lastOutput = proc.outputMode();
+    proc.pushSettingsToEngine();
+    updateFolderLabel();
+    juce::String hint = TR("Pad'e tıkla: dinle  ·  sürükle: Ableton'a bırak");
+    if (lastOutput != GalaksiProcessor::OutputFolder) hint << TR("  ·  MIDI C1–D#2 ile çal");
+    hintLabel.setText(hint, juce::dontSendNotification);
+    for (auto& p : pads) p->repaint();
 }
 
 void GalaksiEditor::chooseFolder()
@@ -362,7 +392,7 @@ void GalaksiEditor::resized()
     {
         auto row = juce::Rectangle<int>(x0, 64, w, 50);
         auto col = [&](int width) { auto c = row.removeFromLeft(width); row.removeFromLeft(14); return c; };
-        auto c1 = col(380);
+        auto c1 = col(320);
         tagsLabel.setBounds(c1.removeFromTop(18));
         tagsEditor.setBounds(c1.reduced(0, 2));
         auto c2 = col(250);
@@ -370,9 +400,12 @@ void GalaksiEditor::resized()
         rootBox.setBounds(c2.removeFromLeft(70).reduced(0, 2));
         c2.removeFromLeft(6);
         modeBox.setBounds(c2.reduced(0, 2));
-        auto c3 = col(200);
+        auto c3 = col(180);
         shiftLabel.setBounds(c3.removeFromTop(18));
         shiftModeBox.setBounds(c3.reduced(0, 2));
+        auto c4 = row; // kalan genişlik
+        outputLabel.setBounds(c4.removeFromTop(18));
+        outputBox.setBounds(c4.reduced(0, 2));
     }
     // satır 2
     {
@@ -430,6 +463,7 @@ void GalaksiEditor::timerCallback()
 {
     ++tick;
     if (proc.slotCount() != lastCount) layoutPads();
+    if (proc.outputMode() != lastOutput) updateOutputMode();
     const int v = proc.engine.version();
     const bool changed = v != lastVersion;
     lastVersion = v;
