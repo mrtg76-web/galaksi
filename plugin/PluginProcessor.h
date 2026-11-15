@@ -48,6 +48,13 @@ public:
     enum OutputMode { OutputDrumRack = 0, OutputFolder = 1 };
     int outputMode() const { return juce::jlimit(0, 1, (int) params.getRawParameterValue("output")->load()); }
     juce::StringArray readyFilesInOrder() const; // Drum Rack'e toplu sürükleme için
+    enum SourceMode { SourceRadio = 0, SourcePercussion = 1 };
+    int sourceMode() const { return juce::jlimit(0, 1, (int) params.getRawParameterValue("source")->load()); }
+    void setPercTerms(const juce::String& commaSeparated);
+    void setPercExclude(const juce::String& commaSeparated);
+    void setApiKey(const juce::String& key);   // bilgisayar genelinde saklanır (her projede tekrar girilmez)
+    juce::String apiKey() const { return engine.getSettings().apiKey; }
+    juce::File writeDrumRack(juce::String& error) { pushSettingsToEngine(); return engine.writeDrumRack(slotCount(), error); }
 
     gk::SlotEngine engine;
     juce::AudioProcessorValueTreeState params;
@@ -57,6 +64,7 @@ public:
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
     void slotChanged(int slot);
+    std::unique_ptr<juce::PropertiesFile> globalProps;
 
     struct Voice {
         gk::SharedBuffer buffer;      // sadece ses iş parçacığı

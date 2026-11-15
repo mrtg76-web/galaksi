@@ -16,7 +16,8 @@ struct Pcm {
 
 // Bir yayından ham olarak kaydedilmiş MP3 baytlarını çözer (ortadan başlayan akışlar dahil).
 // En fazla 2 kanal döner. Başarısızsa length()==0.
-Pcm decodeMp3(const uint8_t* data, size_t size);
+// minFrames: bundan az sağlam kare çözülürse başarısız sayılır (kısa dosyalar için düşür).
+Pcm decodeMp3(const uint8_t* data, size_t size, int minFrames = 10);
 
 enum class ShiftMode { Quality = 0, Tape = 1 };
 

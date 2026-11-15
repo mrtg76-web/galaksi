@@ -26,10 +26,10 @@ std::vector<float> Pcm::mono() const
 }
 
 // ---------------------------------------------------------------- MP3
-Pcm decodeMp3(const uint8_t* buf, size_t size)
+Pcm decodeMp3(const uint8_t* buf, size_t size, int minFrames)
 {
     Pcm out;
-    if (!buf || size < 1024) return out;
+    if (!buf || size < (minFrames >= 10 ? 1024u : 64u)) return out;
 
     mp3dec_t dec;
     mp3dec_init(&dec);
@@ -61,7 +61,7 @@ Pcm decodeMp3(const uint8_t* buf, size_t size)
             for (int i = 0; i < samples; ++i) d[base + i] = pcm[(size_t) i * info.channels + c];
         }
     }
-    if (goodFrames < 10) return Pcm{};
+    if (goodFrames < std::max(1, minFrames)) return Pcm{};
     return out;
 }
 

@@ -9,6 +9,17 @@ GalaksiProcessor::GalaksiProcessor()
 {
     for (auto& t : uiTrigger) t = 0;
     engine.onSlotChanged = [this](int s) { slotChanged(s); };
+
+    juce::PropertiesFile::Options o;
+    o.applicationName = "Galaksi";
+    o.filenameSuffix = ".settings";
+    o.folderName = "Galaksi";
+    o.osxLibrarySubFolder = "Application Support";
+    globalProps = std::make_unique<juce::PropertiesFile>(o);
+    auto es = engine.getSettings();
+    es.apiKey = globalProps->getValue("freesoundKey");
+    engine.setSettings(es);
+
     pushSettingsToEngine();
 }
 
@@ -25,6 +36,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout GalaksiProcessor::createLayo
     for (int i = 0; i < 12; ++i) notes.add(gk::noteName(i));
     for (int i = 0; i < gk::NumModes; ++i) modes.add(TR(gk::modeNameTr(i)));
 
+    l.add(std::make_unique<AudioParameterChoice>(ParameterID {"source", 1}, TR("Kaynak"),
+                                                 StringArray {TR("Radyo"), TR("Perküsyon")}, 0));
+    l.add(std::make_unique<AudioParameterChoice>(ParameterID {"license", 1}, TR("Lisans"),
+                                                 StringArray {TR("Hepsi"), TR("Sadece CC0")}, 0));
     l.add(std::make_unique<AudioParameterInt>(ParameterID {"count", 1}, TR("Sample sayısı"), 1, 16, 8));
     l.add(std::make_unique<AudioParameterFloat>(ParameterID {"length", 1}, TR("Uzunluk"),
                                                 NormalisableRange<float>(0.1f, 16.f, 0.01f, 0.4f), 2.f,
@@ -62,6 +77,9 @@ void GalaksiProcessor::pushSettingsToEngine()
     es.core.maxShift = (int) params.getRawParameterValue("maxshift")->load();
     es.core.shiftMode = params.getRawParameterValue("shiftmode")->load() > 0.5f ? gk::ShiftMode::Tape : gk::ShiftMode::Quality;
     es.exportToFolder = true; // Drum Rack da dosyaları klasörden okur
+    es.source = sourceMode() == SourcePercussion ? gk::Source::Percussion : gk::Source::Radio;
+    es.cc0Only = params.getRawParameterValue("license")->load() > 0.5f;
+    es.perc.maxLengthSec = juce::jlimit(0.1, 16.0, (double) es.core.lengthSec);
     es.recordSeconds = juce::jmax((double) params.getRawParameterValue("record")->load(), es.core.lengthSec + 3.0);
     engine.setSettings(es);
 }
@@ -73,6 +91,38 @@ void GalaksiProcessor::setTags(const juce::String& s)
     es.tags.trim();
     es.tags.removeEmptyStrings();
     engine.setSettings(es);
+}
+
+static juce::StringArray splitList(const juce::String& s)
+{
+    auto a = juce::StringArray::fromTokens(s, ",", "");
+    a.trim();
+    a.removeEmptyStrings();
+    return a;
+}
+
+void GalaksiProcessor::setPercTerms(const juce::String& s)
+{
+    auto es = engine.getSettings();
+    es.percTerms = splitList(s);
+    engine.setSettings(es);
+}
+
+void GalaksiProcessor::setPercExclude(const juce::String& s)
+{
+    auto es = engine.getSettings();
+    es.percExclude = splitList(s);
+    engine.setSettings(es);
+}
+
+void GalaksiProcessor::setApiKey(const juce::String& key)
+{
+    auto es = engine.getSettings();
+    if (es.apiKey == key.trim()) return;
+    es.apiKey = key.trim();
+    engine.setSettings(es);
+    globalProps->setValue("freesoundKey", es.apiKey);
+    globalProps->saveIfNeeded();
 }
 
 void GalaksiProcessor::setFolder(const juce::File& f)

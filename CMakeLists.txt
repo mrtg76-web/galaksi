@@ -7,6 +7,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(GK_BUILD_PLUGIN "Build the JUCE plugin" ON)
 option(GK_BUILD_TESTS "Build the headless core tests" ON)
+option(GK_BUILD_SNAPSHOT "Build the UI snapshot tool (development)" OFF)
 set(GK_JUCE_DIR "" CACHE PATH "Local JUCE checkout (fetched automatically when empty)")
 set(GK_RUBBERBAND_DIR "" CACHE PATH "Local Rubber Band checkout (fetched automatically when empty)")
 
@@ -38,7 +39,7 @@ if(APPLE)
 endif()
 
 # ---------------------------------------------------------------- core (framework independent)
-add_library(gk_core STATIC core/Analysis.cpp core/Audio.cpp)
+add_library(gk_core STATIC core/Analysis.cpp core/Audio.cpp core/Percussion.cpp core/Adg.cpp)
 target_include_directories(gk_core PUBLIC core PRIVATE third_party/minimp3)
 target_link_libraries(gk_core PUBLIC gk_rubberband)
 
@@ -48,6 +49,9 @@ if(GK_BUILD_TESTS)
     target_link_libraries(gk_tests PRIVATE gk_core)
     target_compile_definitions(gk_tests PRIVATE GK_TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
     add_test(NAME gk_tests COMMAND gk_tests)
+    add_executable(gk_perc_tests tests/test_perc.cpp)
+    target_link_libraries(gk_perc_tests PRIVATE gk_core)
+    add_test(NAME gk_perc_tests COMMAND gk_perc_tests)
 endif()
 
 # ---------------------------------------------------------------- plugin
@@ -88,6 +92,7 @@ if(GK_BUILD_PLUGIN)
         plugin/PluginProcessor.cpp
         plugin/PluginEditor.cpp
         plugin/RadioNet.cpp
+        plugin/FreesoundNet.cpp
         plugin/SlotEngine.cpp)
 
     target_compile_definitions(Galaksi PUBLIC
@@ -112,4 +117,11 @@ if(GK_BUILD_PLUGIN)
             juce::juce_recommended_config_flags
             juce::juce_recommended_lto_flags
             juce::juce_recommended_warning_flags)
+endif()
+
+if(GK_BUILD_PLUGIN AND GK_BUILD_SNAPSHOT)
+    add_executable(gk_snapshot tests/snapshot.cpp)
+    target_include_directories(gk_snapshot PRIVATE plugin $<TARGET_PROPERTY:Galaksi,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(gk_snapshot PRIVATE $<TARGET_PROPERTY:Galaksi,COMPILE_DEFINITIONS>)
+    target_link_libraries(gk_snapshot PRIVATE Galaksi)
 endif()
