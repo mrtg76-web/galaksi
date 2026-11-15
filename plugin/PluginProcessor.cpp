@@ -40,7 +40,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout GalaksiProcessor::createLayo
                                                 NormalisableRange<float>(6.f, 30.f, 1.f), 12.f,
                                                 AudioParameterFloatAttributes().withLabel("s")));
     l.add(std::make_unique<AudioParameterChoice>(ParameterID {"output", 1}, TR("Çıktı"),
-                                                 StringArray {TR("MIDI pad'ler"), TR("WAV klasörü"), TR("İkisi de")}, 2));
+                                                 StringArray {TR("Drum Rack"), TR("WAV klasörü")}, 0));
     l.add(std::make_unique<AudioParameterFloat>(ParameterID {"gain", 1}, TR("Ses"),
                                                 NormalisableRange<float>(-30.f, 6.f, 0.1f), 0.f,
                                                 AudioParameterFloatAttributes().withLabel("dB")));
@@ -61,7 +61,7 @@ void GalaksiProcessor::pushSettingsToEngine()
     es.core.minConfidence = params.getRawParameterValue("minconf")->load();
     es.core.maxShift = (int) params.getRawParameterValue("maxshift")->load();
     es.core.shiftMode = params.getRawParameterValue("shiftmode")->load() > 0.5f ? gk::ShiftMode::Tape : gk::ShiftMode::Quality;
-    es.exportToFolder = outputMode() != OutputMidi;
+    es.exportToFolder = true; // Drum Rack da dosyaları klasörden okur
     es.recordSeconds = juce::jmax((double) params.getRawParameterValue("record")->load(), es.core.lengthSec + 3.0);
     engine.setSettings(es);
 }
@@ -80,6 +80,16 @@ void GalaksiProcessor::setFolder(const juce::File& f)
     auto es = engine.getSettings();
     es.folder = f;
     engine.setSettings(es);
+}
+
+juce::StringArray GalaksiProcessor::readyFilesInOrder() const
+{
+    juce::StringArray files;
+    for (int i = 0; i < slotCount(); ++i) {
+        auto s = engine.getSlot(i);
+        if (s.audio && s.file.existsAsFile()) files.add(s.file.getFullPathName());
+    }
+    return files;
 }
 
 void GalaksiProcessor::slotChanged(int slot)
@@ -141,16 +151,7 @@ void GalaksiProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Midi
         else if (start(s, 1.f)) uiTrigger[(size_t) s] = 0;
     }
 
-    const bool midiOn = outputMode() != OutputFolder;
-    if (midiOn)
-    for (const auto meta : midi) {
-        const auto m = meta.getMessage();
-        if (m.isNoteOn()) {
-            const int slot = m.getNoteNumber() - FirstMidiNote;
-            if (slot >= 0 && slot < gk::SlotEngine::MaxSlots) start(slot, m.getFloatVelocity());
-        }
-    }
-    midi.clear();
+    midi.clear(); // sample'lar Ableton'ın Drum Rack'inde çalınır; eklenti sadece önizleme yapar
 
     for (auto& v : voices) {
         if (!v.active || !v.buffer) { v.playingFlag = false; continue; }

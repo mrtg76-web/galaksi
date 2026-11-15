@@ -45,13 +45,14 @@ public:
     void setTags(const juce::String& commaSeparated);
     void setFolder(const juce::File& f);
     int slotCount() const;
-    enum OutputMode { OutputMidi = 0, OutputFolder = 1, OutputBoth = 2 };
-    int outputMode() const { return juce::jlimit(0, 2, (int) params.getRawParameterValue("output")->load()); }
+    enum OutputMode { OutputDrumRack = 0, OutputFolder = 1 };
+    int outputMode() const { return juce::jlimit(0, 1, (int) params.getRawParameterValue("output")->load()); }
+    juce::StringArray readyFilesInOrder() const; // Drum Rack'e toplu sürükleme için
 
     gk::SlotEngine engine;
     juce::AudioProcessorValueTreeState params;
 
-    static constexpr int FirstMidiNote = 36; // C1 -> yuva 1
+    static constexpr int FirstMidiNote = 36; // Drum Rack'in ilk pad'i (C1) -> yuva 1
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();

@@ -33,6 +33,22 @@ private:
     juce::TextButton lockBtn, refreshBtn;
 };
 
+// Bütün hazır sample'ları tek seferde dışarı sürüklemek için tutamak
+class DragAllComponent : public juce::Component {
+public:
+    explicit DragAllComponent(GalaksiProcessor& p) : proc(p) {}
+    void paint(juce::Graphics&) override;
+    void mouseDrag(const juce::MouseEvent&) override;
+    void mouseUp(const juce::MouseEvent&) override { dragging = false; }
+    void mouseEnter(const juce::MouseEvent&) override { repaint(); }
+    void mouseExit(const juce::MouseEvent&) override { repaint(); }
+    int count = 0;
+
+private:
+    GalaksiProcessor& proc;
+    bool dragging = false;
+};
+
 class GalaksiEditor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
     explicit GalaksiEditor(GalaksiProcessor&);
@@ -66,6 +82,7 @@ private:
     Knob count, length, record, minconf, maxshift, gain;
 
     juce::TextButton refreshAllBtn, stopAllBtn, folderBtn, openFolderBtn;
+    DragAllComponent dragAll {proc};
     juce::Label folderLabel, statusLabel, hintLabel;
     std::unique_ptr<juce::FileChooser> chooser;
 

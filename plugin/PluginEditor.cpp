@@ -135,7 +135,7 @@ void PadComponent::paint(juce::Graphics& g)
     g.setColour(kText);
     g.setFont(juce::FontOptions(17.f, juce::Font::bold));
     g.drawText(juce::String(index + 1), top.removeFromLeft(26), juce::Justification::centredLeft);
-    if (proc.outputMode() != GalaksiProcessor::OutputFolder) {
+    if (proc.outputMode() == GalaksiProcessor::OutputDrumRack) {
         auto noteArea = top.removeFromLeft(40).toFloat().reduced(0, 2);
         g.setColour(kCyan.withAlpha(0.18f));
         g.fillRoundedRectangle(noteArea, 4.f);
@@ -213,6 +213,34 @@ void PadComponent::mouseUp(const juce::MouseEvent& e)
     dragging = false;
 }
 
+// ---------------------------------------------------------------- toplu sürükleme
+void DragAllComponent::paint(juce::Graphics& g)
+{
+    auto r = getLocalBounds().toFloat().reduced(1.f);
+    const bool active = count > 0;
+    const bool over = isMouseOver() && active;
+    juce::ColourGradient grad(kAccent.withAlpha(active ? (over ? 1.f : 0.8f) : 0.25f), r.getX(), 0,
+                              kCyan.withAlpha(active ? (over ? 1.f : 0.8f) : 0.25f), r.getRight(), 0, false);
+    g.setGradientFill(grad);
+    g.fillRoundedRectangle(r, 6.f);
+    // tutamak çizgileri
+    g.setColour(kBg.withAlpha(0.55f));
+    for (int i = 0; i < 3; ++i) g.fillRoundedRectangle(r.getX() + 10.f, r.getCentreY() - 6.f + i * 5.f, 14.f, 2.f, 1.f);
+    g.setColour(active ? kBg : kDim);
+    g.setFont(juce::FontOptions(13.f, juce::Font::bold));
+    g.drawText(active ? TR("DRUM RACK'E SÜRÜKLE (") + juce::String(count) + ")" : TR("henüz sample yok"),
+               r.withTrimmedLeft(30.f), juce::Justification::centred);
+}
+
+void DragAllComponent::mouseDrag(const juce::MouseEvent& e)
+{
+    if (dragging || e.getDistanceFromDragStart() < 5) return;
+    const auto files = proc.readyFilesInOrder();
+    if (files.isEmpty()) return;
+    dragging = true;
+    juce::DragAndDropContainer::performExternalDragDropOfFiles(files, false, this);
+}
+
 // ---------------------------------------------------------------- editör
 GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), proc(p)
 {
@@ -244,11 +272,10 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
     for (int i = 0; i < gk::NumModes; ++i) modeBox.addItem(TR(gk::modeNameTr(i)), i + 1);
     shiftModeBox.addItem(TR("Kaliteli"), 1);
     shiftModeBox.addItem(TR("Bant (hız değişir)"), 2);
-    outputBox.addItem(TR("MIDI pad'ler"), 1);
+    outputBox.addItem(TR("Drum Rack"), 1);
     outputBox.addItem(TR("WAV klasörü"), 2);
-    outputBox.addItem(TR("İkisi de"), 3);
-    outputBox.setTooltip(TR("MIDI pad'ler: sample'lar eklentide kalır, MIDI notalarıyla çalınır.  "
-                            "WAV klasörü: her sample klasöre kaydedilir.  İkisi de: hem çal hem kaydet."));
+    outputBox.setTooltip(TR("Drum Rack: bütün sample'ları tek hareketle Ableton'daki Drum Rack'e sürükle (yuva 1 = C1).  "
+                            "WAV klasörü: sample'lar sadece klasöre kaydedilir."));
     for (auto* b : {&rootBox, &modeBox, &shiftModeBox, &outputBox}) addAndMakeVisible(*b);
     outputAtt = std::make_unique<CA>(proc.params, "output", outputBox);
     rootAtt = std::make_unique<CA>(proc.params, "root", rootBox);
@@ -288,6 +315,7 @@ GalaksiEditor::GalaksiEditor(GalaksiProcessor& p) : AudioProcessorEditor(&p), pr
         f.startAsProcess();
     };
     for (auto* b : {&refreshAllBtn, &stopAllBtn, &folderBtn, &openFolderBtn}) addAndMakeVisible(*b);
+    addChildComponent(dragAll);
 
     folderLabel.setColour(juce::Label::textColourId, kDim);
     folderLabel.setFont(juce::FontOptions(12.f));
@@ -320,14 +348,7 @@ GalaksiEditor::~GalaksiEditor()
 
 void GalaksiEditor::updateFolderLabel()
 {
-    const int mode = proc.outputMode();
-    if (mode == GalaksiProcessor::OutputMidi)
-        folderLabel.setText(TR("Sample'lar eklentide kalıyor (klasöre kaydedilmiyor). Pad'i sürükleyerek yine de Ableton'a alabilirsin."),
-                            juce::dontSendNotification);
-    else
-        folderLabel.setText(TR("WAV klasörü: ") + proc.engine.getSettings().folder.getFullPathName(), juce::dontSendNotification);
-    folderBtn.setEnabled(mode != GalaksiProcessor::OutputMidi);
-    openFolderBtn.setEnabled(mode != GalaksiProcessor::OutputMidi);
+    folderLabel.setText(TR("WAV klasörü: ") + proc.engine.getSettings().folder.getFullPathName(), juce::dontSendNotification);
 }
 
 void GalaksiEditor::updateOutputMode()
@@ -335,9 +356,12 @@ void GalaksiEditor::updateOutputMode()
     lastOutput = proc.outputMode();
     proc.pushSettingsToEngine();
     updateFolderLabel();
-    juce::String hint = TR("Pad'e tıkla: dinle  ·  sürükle: Ableton'a bırak");
-    if (lastOutput != GalaksiProcessor::OutputFolder) hint << TR("  ·  MIDI C1–D#2 ile çal");
-    hintLabel.setText(hint, juce::dontSendNotification);
+    const bool drum = lastOutput == GalaksiProcessor::OutputDrumRack;
+    hintLabel.setText(drum ? TR("Pad'e tıkla: dinle  ·  sağdaki tutamağı Drum Rack'in C1 pad'ine bırak")
+                           : TR("Pad'e tıkla: dinle  ·  sürükle: Ableton'a bırak"),
+                      juce::dontSendNotification);
+    dragAll.setVisible(drum);
+    resized();
     for (auto& p : pads) p->repaint();
 }
 
@@ -429,6 +453,10 @@ void GalaksiEditor::resized()
         row.removeFromLeft(8);
         openFolderBtn.setBounds(row.removeFromLeft(110));
         row.removeFromLeft(12);
+        if (dragAll.isVisible()) {
+            dragAll.setBounds(row.removeFromRight(250).withTrimmedTop(-2).withTrimmedBottom(-2));
+            row.removeFromRight(10);
+        }
         folderLabel.setBounds(row);
     }
     auto status = getLocalBounds().removeFromBottom(30).reduced(20, 4);
@@ -474,6 +502,8 @@ void GalaksiEditor::timerCallback()
             pads[(size_t) i]->update(info, playing, proc.playPosition(i));
     }
     if (changed) {
+        const int ready = proc.readyFilesInOrder().size();
+        if (ready != dragAll.count) { dragAll.count = ready; dragAll.repaint(); }
         statusLabel.setText(proc.engine.lastMessage(), juce::dontSendNotification);
         repaint(getWidth() - 340, 10, 330, 36);
     }
